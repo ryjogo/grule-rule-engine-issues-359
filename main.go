@@ -104,7 +104,7 @@ func main() {
     when 
 		true
     then
-        Log("Under aged: " + MF.Hostname.GetValue());
+        Log("Value: " + MF.Hostname.GetValue());
         MF.Hostname.UseVMWare();
         Retract("CheckValues");
 	}`
