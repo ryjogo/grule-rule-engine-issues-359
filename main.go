@@ -19,15 +19,26 @@ const (
 )
 
 func NewCmdbCiServer() *CmdbCiServer {
-	obj := &CmdbCiServer{}
-	obj.Hostname.configurationItem = make(map[string]string)
+	obj := &CmdbCiServer{
+		Hostname: *NewMutator[string](),
+		Owner:    *NewMutator[string](),
+		Version:  *NewMutator[int64](),
+		Active:   *NewMutator[bool](),
+	}
 	return obj
+}
+
+func NewMutator[T any]() *Mutator[T] {
+	mt := &Mutator[T]{
+		configurationItem: make(map[string]T),
+	}
+	return mt
 }
 
 type CmdbCiServer struct {
 	Hostname Mutator[string] `json:"hostname,omitempty"`
 	Owner    Mutator[string] `json:"owner,omitempty"`
-	Version  Mutator[int]
+	Version  Mutator[int64]
 	Active   Mutator[bool]
 }
 
@@ -93,6 +104,7 @@ func main() {
     when 
 		true
     then
+        Log("Under aged: " + MF.Hostname.GetValue());
         MF.Hostname.UseVMWare();
         Retract("CheckValues");
 	}`
