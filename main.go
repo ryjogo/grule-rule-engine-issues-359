@@ -20,67 +20,69 @@ const (
 
 func NewCmdbCiServer() *CmdbCiServer {
 	obj := &CmdbCiServer{
-		Hostname: *NewMutator[string](),
-		Owner:    *NewMutator[string](),
-		Version:  *NewMutator[int64](),
-		Active:   *NewMutator[bool](),
+		Hostname: newMutator(),
+		Owner:    newMutator(),
+		Version:  newMutator(),
+		Active:   newMutator(),
 	}
 	return obj
 }
 
-func NewMutator[T any]() *Mutator[T] {
-	mt := &Mutator[T]{
-		configurationItem: make(map[string]T),
-	}
-	return mt
-}
-
 type CmdbCiServer struct {
-	Hostname Mutator[string] `json:"hostname,omitempty"`
-	Owner    Mutator[string] `json:"owner,omitempty"`
-	Version  Mutator[int64]
-	Active   Mutator[bool]
+	Hostname *mutator
+	Owner    *mutator
+	Version  *mutator
+	Active   *mutator
 }
 
-type Mutator[T any] struct {
-	value             T
-	configurationItem map[string]T
-	ldap              T
-	vmWare            T
-	err               T
+type mutator struct {
+	Value             interface{}
+	configurationItem map[string]interface{}
+	ldap              interface{}
+	vmWare            interface{}
+	err               interface{}
 }
 
-func (mt *Mutator[T]) SetLdap(val T) *Mutator[T] {
+func newMutator() *mutator {
+	return &mutator{
+		configurationItem: make(map[string]interface{}),
+	}
+}
+
+func (mt *mutator) SetLdap(val interface{}) *mutator {
 	mt.configurationItem[SourceTypeLdap] = val
 	return mt
 }
 
-func (mt *Mutator[T]) UseLdap() {
-	mt.value = mt.configurationItem[SourceTypeLdap]
+func (mt *mutator) UseLdap() {
+	mt.Value = mt.configurationItem[SourceTypeLdap]
 }
 
-func (mt *Mutator[T]) SetVMWare(val T) *Mutator[T] {
+func (mt *mutator) SetVMWare(val interface{}) *mutator {
 	mt.configurationItem[SourceTypeVMWare] = val
 	return mt
 }
 
-func (mt *Mutator[T]) UseVMWare() {
-	mt.value = mt.configurationItem[SourceTypeVMWare]
+func (mt *mutator) UseVMWare() {
+	mt.Value = mt.configurationItem[SourceTypeVMWare]
 }
 
-func (mt *Mutator[T]) GetValue() *Mutator[T] {
-	return &Mutator[T]{value: mt.value}
+func (mt *mutator) GetValue() interface{} {
+	return mt.Value
 }
 
 // Helper methods
 
-func (mt *Mutator[T]) String() string {
-	return fmt.Sprintf("%v", mt.value)
+func (mt *mutator) String() string {
+	return fmt.Sprintf("%v", mt.Value)
+}
+
+type CmdbCiServerWrapper struct {
+	MF *CmdbCiServer
 }
 
 func main() {
 	test := NewCmdbCiServer()
-
 	test.Hostname.SetLdap("appsrv01.domain.com")
 	test.Hostname.SetVMWare("server1 (used as an app server)")
 
@@ -91,23 +93,24 @@ func main() {
 	fmt.Printf("value is now: %s\n", test.Hostname.GetValue())
 
 	dataCtx := ast.NewDataContext()
-	err := dataCtx.Add("MF", test)
+	err := dataCtx.Add("MF", &CmdbCiServerWrapper{test})
 	if err != nil {
 		log.Printf("%v", err)
 	}
+
 	knowledgeLibrary := ast.NewKnowledgeLibrary()
 	ruleBuilder := builder.NewRuleBuilder(knowledgeLibrary)
 
 	// lets prepare a rule definition
 	drls := `
-	rule CheckValues "Check the default values" salience 10 {
-    when 
+rule CheckValues "Check the default values" salience 10 {
+	when 
 		true
-    then
-        Log("Value: " + MF.Hostname.GetValue());
-        MF.Hostname.UseVMWare();
-        Retract("CheckValues");
-	}`
+	then
+		Log("Value: " + MF.MF.Hostname.Value);
+		MF.MF.Hostname.UseVMWare();
+		Retract("CheckValues");
+}`
 
 	// Add the rule definition above into the library and name it 'TutorialRules'  version '0.0.1'
 	bs := pkg.NewBytesResource([]byte(drls))
